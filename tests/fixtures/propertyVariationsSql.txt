@@ -1,0 +1,58 @@
+create table "class1" (
+   "id" serial primary key,
+   "a" boolean,
+   "a1" text,
+   "b" text,
+   "d" text,
+   "e" text,
+   "f" text,
+   "g" text,
+   "g1" text,
+   "g2" text,
+   "h" real,
+   "i" integer,
+   "j" integer,
+   "k" integer,
+   "l" integer,
+   "m" bigint,
+   "n" real,
+   "o" real,
+   "p" real,
+   "q" real,
+   "r" text check ("r" in ('one',
+   'two',
+   '3',
+   '4.5')),
+   "s" date,
+   "s1" date,
+   "s2" date,
+   "s3" time,
+   "t" integer,
+   "x" integer
+);
+alter table "class1" add constraint "class1_t_foreign" foreign key ("t") references "class1_join_t" ("id");
+alter table "class1" add constraint "class1_x_foreign" foreign key ("x") references "class2" ("id");
+
+create table "class2" (
+   "id" serial primary key,
+   "y" text
+);
+
+create table "class1_join_t" (
+   "id" serial primary key,
+   "u" text,
+   "v" integer
+);
+alter table "class1_join_t" add constraint "class1_join_t_v_foreign" foreign key ("v") references "class1_join_t_join_v" ("id");
+
+create table "class1_join_t_join_v" (
+   "id" serial primary key,
+   "w" text
+);
+
+create table "c" (
+   "id" serial primary key,
+   "class1_id" integer,
+   "c" text
+);
+alter table "c" add constraint "c_class1_id_foreign" foreign key ("class1_id") references "class1" ("id");

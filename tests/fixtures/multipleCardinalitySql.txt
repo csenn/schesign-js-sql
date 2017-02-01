@@ -1,0 +1,17 @@
+create table "class1" (
+   "id" serial primary key
+);
+
+create table "a1" (
+   "id" serial primary key,
+   "class1_id" integer,
+   "a1" text
+);
+alter table "a1" add constraint "a1_class1_id_foreign" foreign key ("class1_id") references "class1" ("id");
+
+create table "a" (
+   "id" serial primary key,
+   "class1_id" integer,
+   "a" boolean
+);
+alter table "a" add constraint "a_class1_id_foreign" foreign key ("class1_id") references "class1" ("id");

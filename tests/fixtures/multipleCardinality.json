@@ -1,0 +1,43 @@
+{
+  "graph": [
+    {
+      "uid": "https://www.schesign.com/o/tests/multiple_cardinality/master/class/class1",
+      "type": "Class",
+      "label": "class1",
+      "subClassOf": null,
+      "description": "First Description",
+      "propertyRefs": [
+        {
+          "ref": "https://www.schesign.com/o/tests/multiple_cardinality/master/property/a",
+          "cardinality": {
+            "minItems": 0,
+            "maxItems": null
+          }
+        },
+        {
+          "ref": "https://www.schesign.com/o/tests/multiple_cardinality/master/property/a1",
+          "cardinality": {
+            "minItems": 0,
+            "maxItems": null
+          }
+        }
+      ]
+    },
+    {
+      "uid": "https://www.schesign.com/o/tests/multiple_cardinality/master/property/a",
+      "type": "Property",
+      "label": "a",
+      "range": {
+        "type": "Boolean"
+      }
+    },
+    {
+      "uid": "https://www.schesign.com/o/tests/multiple_cardinality/master/property/a1",
+      "type": "Property",
+      "label": "a1",
+      "range": {
+        "type": "Text"
+      }
+    }
+  ]
+}
