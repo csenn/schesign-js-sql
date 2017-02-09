@@ -143,6 +143,28 @@ export function _addTable(context, tableName, propertyRefs) {
   context.tables.push(`${knexSchema.toString()};`);
 }
 
+export function _flattenHierarchies(context) {
+  Object.keys(context.definitions.classes).forEach(key => {
+    const classNode = context.definitions.classes[key];
+    const recurseNode = node => {
+      if (node.subClassOf) {
+        const parent = context.definitions.classes[node.subClassOf];
+        parent.propertyRefs.forEach(parentRef => {
+          const exclude = classNode.excludeParentProperties
+            && classNode.excludeParentProperties.includes(parentRef.ref)
+          const exists = existsInRefs(context, classNode.propertyRefs, parentRef)
+          if (!exclude && !exists) {
+            classNode.propertyRefs.push(parentRef);
+          }
+        });
+        recurseNode(parent);
+      }
+    };
+    recurseNode(classNode);
+  });
+}
+
+
 export function generateFromGraph(graph, options = {}) {
   const context = {
     client: 'postgres',
@@ -164,6 +186,8 @@ export function generateFromGraph(graph, options = {}) {
       throw new Error('Bad node in graph');
     }
   });
+
+  _flattenHierarchies(context);
 
   Object.keys(context.definitions.classes).forEach(key => {
     const node = context.definitions.classes[key];
