@@ -12,11 +12,11 @@ const propertyVariationsSql = readSql('propertyVariationsSql.txt');
 const multipleCardinalitySql = readSql('multipleCardinalitySql.txt');
 
 describe('generateJsonSchema', () => {
-  it('should convert a propertyVariations graph to a json schema', () => {
+  it('should convert a propertyVariations graph to a sql string', () => {
     const query = generateFromGraph(propertyVariations.graph, {});
     expect(query).to.equal(propertyVariationsSql);
   });
-  it('should convert a multipleCardinality graph to a json schema', () => {
+  it('should convert a multipleCardinality graph to a sql string', () => {
     const query = generateFromGraph(multipleCardinality.graph, {});
     expect(query).to.equal(multipleCardinalitySql);
   });

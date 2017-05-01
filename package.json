@@ -1,8 +1,8 @@
 {
-  "name": "schesign-json-schema",
-  "version": "1.0.0",
+  "name": "schesign-js-sql",
+  "version": "0.0.1",
   "license": "MIT",
-  "description": "Generate a json schema from a schesign graph",
+  "description": "Generate sql queries from a schesign graph",
   "repository": {
     "type": "git",
     "url": "https://github.com/csenn/schesign-js-sql.git"

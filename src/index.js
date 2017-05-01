@@ -151,8 +151,8 @@ export function _flattenHierarchies(context) {
         const parent = context.definitions.classes[node.subClassOf];
         parent.propertyRefs.forEach(parentRef => {
           const exclude = classNode.excludeParentProperties
-            && classNode.excludeParentProperties.includes(parentRef.ref)
-          const exists = existsInRefs(context, classNode.propertyRefs, parentRef)
+            && classNode.excludeParentProperties.includes(parentRef.ref);
+          const exists = existsInRefs(context, classNode.propertyRefs, parentRef);
           if (!exclude && !exists) {
             classNode.propertyRefs.push(parentRef);
           }
@@ -167,7 +167,7 @@ export function _flattenHierarchies(context) {
 
 export function generateFromGraph(graph, options = {}) {
   const context = {
-    client: 'postgres',
+    client: options.client || 'postgres',
     tables: [],
     /* Track tables that have been added */
     tablesAdded: {},
