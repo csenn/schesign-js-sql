@@ -1,207 +1,263 @@
-/* eslint no-use-before-define: ["error", { "functions": false }]*/
+/* eslint no-use-before-define: ["error", { "functions": false }] */
 
-import knex from 'knex';
-import * as utils from './utils';
+import knex from 'knex'
+import * as utils from './utils'
 
-function _fromBooleanRange(table, propertyName) {
-  return table.boolean(propertyName);
+function _getTableName (context, uid, label) {
+  if (context.tableLookup.uids[uid]) {
+    return context.tableLookup.uids[uid]
+  }
+
+  let tableName
+  if (context.tableLookup.labels[label]) {
+    tableName = `${label}_${context.tableLookup.labels[label]}`
+    context.tableLookup.labels[label] += 1
+  } else {
+    tableName = label
+    context.tableLookup.labels[label] = 1
+  }
+
+  context.tableLookup.uids[uid] = tableName
+  return tableName
 }
 
-function _fromStringRange(table, propertyName) {
-  return table.text(propertyName);
+function _fromBooleanRange (table, propertyName) {
+  return table.boolean(propertyName)
+}
+
+function _fromStringRange (table, propertyName) {
+  return table.text(propertyName)
 }
 
 const integers = [
   utils.NUMBER_INT,
   utils.NUMBER_INT_8,
   utils.NUMBER_INT_16,
-  utils.NUMBER_INT_32,
-];
+  utils.NUMBER_INT_32
+]
 
-function _fromNumberRange(table, propertyName, range) {
+function _fromNumberRange (table, propertyName, range) {
   if (range.format === utils.NUMBER_INT_64) {
-    return table.bigInteger(propertyName);
+    return table.bigInteger(propertyName)
   } else if (integers.includes(range.format)) {
-    return table.integer(propertyName);
+    return table.integer(propertyName)
   }
-  return table.float(propertyName);
+  return table.float(propertyName)
 }
 
-function _fromDateRange(table, propertyName, range) {
+function _fromDateRange (table, propertyName, range) {
   if (range.format === 'ShortDate') {
-    return table.date(propertyName);
+    return table.date(propertyName)
   } else if (range.format === 'Time') {
-    return table.time(propertyName);
+    return table.time(propertyName)
   }
-  return table.date(propertyName);
+  return table.date(propertyName)
 }
 
-function _fromEnumRange(table, propertyName, range) {
-  return table.enu(propertyName, range.values);
+function _fromEnumRange (table, propertyName, range) {
+  return table.enu(propertyName, range.values)
 }
 
-function _fromNestedObject(schemaContext, table, propertyName, range, parentName) {
-  const name = `${parentName}_join_${propertyName}`;
-  _addTable(schemaContext, name, range.propertyRefs);
+function _fromNestedObject (schemaContext, table, property, parentName) {
+  const { uid, label, range } = property
+
+  const tableName = _getTableName(schemaContext, uid, label)
+  _addTable(schemaContext, uid, tableName, range.propertySpecs)
+
   return table
-    .integer(propertyName)
+    .integer(label)
     .unsigned()
     .references('id')
-    .inTable(name);
+    .inTable(tableName)
 }
 
-function _fromLinkedClass(context, table, propertyName, range) {
-  const rangeClass = context.definitions.classes[range.ref];
-  _addTable(context, rangeClass.label, rangeClass.propertyRefs);
+function _fromLinkedClass (context, table, property) {
+  const rangeClass = context.definitions.classes[property.range.ref]
+
+  const tableName = _getTableName(context, rangeClass.uid, rangeClass.label)
+  _addTable(context, rangeClass.uid, tableName, rangeClass.propertySpecs)
+
   return table
-    .integer(propertyName)
+    .integer(property.label)
     .unsigned()
     .references('id')
-    .inTable(rangeClass.label);
+    .inTable(tableName)
 }
 
-function _buildFromRange(schemaContext, table, propertyName, range, isRequired, parentName) {
-  let col;
+function _buildFromRange (schemaContext, table, property, propertySpec, parentName) {
+  const { label, range } = property
+
+  let col
   switch (range.type) {
     case utils.BOOLEAN:
-      col = _fromBooleanRange(table, propertyName);
-      break;
+      col = _fromBooleanRange(table, label)
+      break
     case utils.TEXT:
-      col = _fromStringRange(table, propertyName);
-      break;
+      col = _fromStringRange(table, label)
+      break
     case utils.NUMBER:
-      col = _fromNumberRange(table, propertyName, range);
-      break;
+      col = _fromNumberRange(table, label, range)
+      break
     case utils.DATE:
-      return _fromDateRange(table, propertyName, range);
+      return _fromDateRange(table, label, range)
     case utils.ENUM:
-      return _fromEnumRange(table, propertyName, range);
+      return _fromEnumRange(table, label, range)
     case utils.NESTED_OBJECT:
-      return _fromNestedObject(schemaContext, table, propertyName, range, parentName);
+      return _fromNestedObject(schemaContext, table, property, parentName)
     case utils.LINKED_CLASS:
-      return _fromLinkedClass(schemaContext, table, propertyName, range);
+      return _fromLinkedClass(schemaContext, table, property)
     default:
-      throw new Error(`Not expecting type: ${range.type}`);
+      throw new Error(`Not expecting type: ${range.type}`)
   }
 
-  if (isRequired) {
-    col.notNullable();
+  if (propertySpec.required) {
+    col.notNullable()
+  }
+
+  if (propertySpec.primaryKey) {
+    col.primary()
   }
 }
 
-function _fromPropertyRefs(context, table, propertyRefs, parentName) {
-  for (let i = 0; i < propertyRefs.length; i++) {
-    const propertyRef = propertyRefs[i];
-    const property = context.definitions.properties[propertyRef.ref];
-    const { label, range } = property;
+function _fromPropertySpecs (context, table, propertySpecs, parentName) {
+  for (let i = 0; i < propertySpecs.length; i++) {
+    const propertySpec = propertySpecs[i]
+    const property = context.definitions.properties[propertySpec.ref]
+    const { label, range } = property
 
     /* create a linking table */
-    if (utils.isMultipleCardinality(propertyRef.cardinality) && range.type !== utils.NESTED_OBJECT) {
-      const name = `${parentName}_join_${label}`;
-      _addTableForMultipleCardinality(context, name, parentName, label, range, propertyRef);
+    // if (utils.isMultipleCardinality(propertySpec.cardinality) && range.type !== utils.NESTED_OBJECT) {
+    if (propertySpec.array && range.type !== utils.NESTED_OBJECT) {
+      const name = `${parentName}_join_${label}`
+      _addTableForMultipleCardinality(context, name, parentName, property, propertySpec)
     } else {
-      _buildFromRange(context, table, label, range, propertyRef.required, parentName);
+      _buildFromRange(context, table, property, propertySpec, parentName)
     }
   }
 }
 
-export function _addTableForMultipleCardinality(context, tableName, table1, table2, range, propertyRef) {
+export function _addTableForMultipleCardinality (context, tableName, parentName, property, propertySpec) {
   const instance = knex({
-    client: context.client,
-  });
+    client: context.client
+  })
 
   /* add result table */
-  const knexSchema = instance.schema.createTable(table2, table => {
-    table.increments('id');
+  const knexSchema = instance.schema.createTable(property.label, table => {
+    table.increments('id')
     table
-      .integer(table1 + '_id')
+      .integer(parentName + '_id')
       .unsigned()
       .references('id')
-      .inTable(table1);
+      .inTable(parentName)
 
-    _buildFromRange(context, table, table2, range, propertyRef.required, table2 + '_id');
-  });
+    _buildFromRange(context, table, property, propertySpec, property.label + '_id')
+  })
 
-  context.tables.push(`${knexSchema.toString()};`);
+  context.tables.push(`${knexSchema.toString()};`)
 }
 
-export function _addTable(context, tableName, propertyRefs) {
-  if (context.tablesAdded[tableName]) {
-    return;
+export function _addTable (context, uid, tableName, propertySpecs) {
+  if (context.tableLookup.added[uid]) {
+    return
   }
-  context.tablesAdded[tableName] = true;
+
+  context.tableLookup.added[uid] = true
 
   const instance = knex({
-    client: context.client,
-  });
+    client: context.client
+  })
 
   const knexSchema = instance.schema.createTable(tableName, table => {
-    table.increments('id');
-    _fromPropertyRefs(context, table, propertyRefs, tableName);
-  });
+    const primaryKeySpec = propertySpecs.find(spec => spec.primaryKey)
+    if (!primaryKeySpec) {
+      table.increments('id')
+    }
+    _fromPropertySpecs(context, table, propertySpecs, tableName)
+  })
 
-  context.tables.push(`${knexSchema.toString()};`);
+  context.tables.push(`${knexSchema.toString()};`)
 }
 
-export function _flattenHierarchies(context) {
-  Object.keys(context.definitions.classes).forEach(key => {
-    const classNode = context.definitions.classes[key];
+/* If there is a property label lower in the hierarchy,
+do not overwrite it from parent with same name */
+function existsInRefs (context, propertySpecs, parentRef) {
+  const properties = context.definitions.properties
+  return propertySpecs.some(ref => {
+    const node = properties[ref.ref]
+    const parentNode = properties[parentRef.ref]
+    return node.label === parentNode.label
+  })
+}
+
+export function _flattenHierarchies (context) {
+  const classes = context.definitions.classes
+  Object.keys(classes).forEach(key => {
+    const classNode = classes[key]
+    const excluded = []
+
+    // classNode.excludeParentProperties || []
     const recurseNode = node => {
       if (node.subClassOf) {
-        const parent = context.definitions.classes[node.subClassOf];
-        parent.propertyRefs.forEach(parentRef => {
-          const exclude = classNode.excludeParentProperties
-            && classNode.excludeParentProperties.includes(parentRef.ref);
-          const exists = existsInRefs(context, classNode.propertyRefs, parentRef);
-          if (!exclude && !exists) {
-            classNode.propertyRefs.push(parentRef);
+        const parent = classes[node.subClassOf]
+        parent.propertySpecs.forEach(parentRef => {
+          if (node.excludeParentProperties) {
+            excluded.push(...node.excludeParentProperties)
           }
-        });
-        recurseNode(parent);
+          const exists = existsInRefs(context, classNode.propertySpecs, parentRef)
+          if (!exists) {
+            classNode.propertySpecs.push(parentRef)
+          }
+        })
+        recurseNode(parent)
       }
-    };
-    recurseNode(classNode);
-  });
+    }
+    recurseNode(classNode)
+    classNode.propertySpecs = classNode.propertySpecs.filter(spec => excluded.indexOf(spec.ref) === -1)
+  })
 }
 
-
-export function generateFromGraph(graph, options = {}) {
+export function generateFromGraph (graph, options = {}) {
   const context = {
     client: options.client || 'postgres',
     tables: [],
     /* Track tables that have been added */
-    tablesAdded: {},
+    tableLookup: {
+      added: {},
+      uids: {},
+      labels: {}
+    },
     definitions: {
       classes: {},
-      properties: {},
-    },
-  };
+      properties: {}
+    }
+  }
 
   graph.forEach(node => {
     if (node.type === 'Class') {
-      context.definitions.classes[node.uid] = node;
+      context.definitions.classes[node.uid] = node
     } else if (node.type === 'Property') {
-      context.definitions.properties[node.uid] = node;
+      context.definitions.properties[node.uid] = node
     } else {
-      throw new Error('Bad node in graph');
+      throw new Error('Bad node in graph')
     }
-  });
+  })
 
-  _flattenHierarchies(context);
+  _flattenHierarchies(context)
 
   Object.keys(context.definitions.classes).forEach(key => {
-    const node = context.definitions.classes[key];
-    _addTable(context, node.label, node.propertyRefs);
-  });
+    const node = context.definitions.classes[key]
+    const tableName = _getTableName(context, node.uid, node.label)
+    _addTable(context, node.uid, tableName, node.propertySpecs)
+  })
 
   const tableQueries = context.tables.reverse().map(table => {
     // mysql -> so cant just split with commas `n` float(8, 2),
-    let result = table.replace(/,(?! ?[0-9])/g, ',\n  ');
-    result = result.replace('(', '(\n   ');
-    result = result.replace(');', '\n);');
-    return result;
-  });
+    let result = table.replace(/,(?! ?[0-9])/g, ',\n  ')
+    result = result.replace('(', '(\n   ')
+    result = result.replace(');', '\n);')
+    return result
+  })
 
-  const query = tableQueries.join('\n\n');
-  return query;
+  const query = tableQueries.join('\n\n')
+  return query
 }
